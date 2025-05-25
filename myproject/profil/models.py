@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from phonenumber_field.modelfields import PhoneNumberField
 import random
+from django.utils import timezone
 
 
 class UserProfileManager(BaseUserManager):
@@ -37,12 +38,11 @@ class UserProfile(AbstractBaseUser, PermissionsMixin):
         return self.email
 
 class EmailConfirmation(models.Model):
-    user = models.OneToOneField(UserProfile, on_delete=models.CASCADE)
+    email = models.EmailField(unique=True)
     code = models.CharField(max_length=6)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def generate_code(self):
-        self.code = str(random.randint(100000, 999999))
-        self.save()
+    created_at = models.DateTimeField(default=timezone.now)
+    is_confirmed = models.BooleanField(default=False)  # ← добавьте это поле
 
 
+    def __str__(self):
+        return self.email

@@ -1,53 +1,79 @@
 from django_rest_passwordreset.models import ResetPasswordToken
-from rest_framework import serializers
-from .models import UserProfile
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Q
+from rest_framework import serializers
+from .models import UserProfile, EmailConfirmation
 import random
+from .utils import send_confirmation_email  # функция для отправки email
+from rest_framework import serializers
+from django.contrib.auth.models import User
 from .models import EmailConfirmation
-from .utils import send_confirmation_email
+import random
+from django.core.mail import send_mail
+from django.conf import settings
+from django.contrib.auth import get_user_model
 
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+User = get_user_model()
 
-    class Meta:
-        model = UserProfile
-        fields = ['name', 'email', 'phone_number', 'password']
+class RegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
 
     def create(self, validated_data):
-        user = UserProfile.objects.create_user(**validated_data)
-        user.is_active = False
-        user.save()
-
-        # Генерируем код подтверждения
+        email = validated_data['email']
         code = str(random.randint(100000, 999999))
-        EmailConfirmation.objects.create(user=user, code=code)
-        send_confirmation_email(user.email, code)
+
+        EmailConfirmation.objects.update_or_create(
+            email=email,
+            defaults={'code': code}
+        )
+
+        # Отправка кода на email
+        send_mail(
+            subject='Ваш код подтверждения',
+            message=f'Ваш код подтверждения: {code}',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+        )
+
+        return {'email': email}
+
+
+class ConfirmPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    code = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        # проверка кода
+        email = attrs.get("email")
+        code = attrs.get("code")
+        password = attrs.get("password")
+
+        try:
+            confirmation = EmailConfirmation.objects.get(email=email, code=code, is_confirmed=False)
+        except EmailConfirmation.DoesNotExist:
+            raise serializers.ValidationError("Неверный код подтверждения")
+
+        attrs["confirmation"] = confirmation
+        return attrs
+
+    def create(self, validated_data):
+        confirmation = validated_data["confirmation"]
+        email = validated_data["email"]
+        password = validated_data["password"]
+
+        # подтверждаем код
+        confirmation.is_confirmed = True
+        confirmation.save()
+
+        # создаём пользователя
+        user, created = User.objects.get_or_create(email=email)
+        if created:
+            user.set_password(password)
+            user.save()
 
         return user
 
-    def to_representation(self, instance):
-        return {
-            'message': 'Код подтверждения отправлен на вашу почту'
-        }
-
-
-# email-----------------------
-class ConfirmEmailSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    code = serializers.CharField()
-
-    def validate(self, data):
-        try:
-            confirmation = EmailConfirmation.objects.get(user__email=data['email'], code=data['code'])
-        except EmailConfirmation.DoesNotExist:
-            raise serializers.ValidationError("Неверный код подтверждения или email")
-
-        user = confirmation.user
-        user.is_active = True
-        user.save()
-        confirmation.delete()
-        return {'email': user.email}
 
 # login---------------
 class LoginSerializer(serializers.Serializer):

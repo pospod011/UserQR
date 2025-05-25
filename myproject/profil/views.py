@@ -3,18 +3,15 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-
 from .serializers import (
     RegisterSerializer, LoginSerializer, LogoutSerializer,
-    ConfirmEmailSerializer, VerifyResetCodeSerializer,
+    VerifyResetCodeSerializer,
     QRLoginGenerateSerializer, QRLoginVerifySerializer
 )
-
-from rest_framework.decorators import api_view
-
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from .serializers import RegisterSerializer, ConfirmPasswordSerializer
+from rest_framework.decorators import api_view
 from rest_framework import status, permissions
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -28,23 +25,35 @@ import uuid
 
 User = get_user_model()
 
-User = get_user_model()
 
-
-class RegisterView(generics.CreateAPIView):
-    serializer_class = RegisterSerializer
-    permission_classes = [AllowAny]
-
-
-class ConfirmEmailView(APIView):
-    permission_classes = [AllowAny]
-    serializer_class = ConfirmEmailSerializer
-
+class RegisterView(APIView):
+    @swagger_auto_schema(
+        request_body=RegisterSerializer,
+        responses={200: openapi.Response("email", RegisterSerializer)}
+    )
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        return Response({'message': 'Email подтверждён. Теперь вы можете войти.'})
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'detail': 'Код отправлен на email'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+class ConfirmPasswordView(APIView):
+    @swagger_auto_schema(
+        request_body=ConfirmPasswordSerializer,
+        responses={200: openapi.Response("confirm email", ConfirmPasswordSerializer)}
+    )
+    def post(self, request):
+        serializer = ConfirmPasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            })
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class CustomLoginView(TokenObtainPairView):
     serializer_class = LoginSerializer

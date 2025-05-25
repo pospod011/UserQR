@@ -6,16 +6,14 @@ from .views import (
     verify_reset_code,
     QRLoginGenerateView,
     QRLoginVerifyView,
-    ConfirmEmailView
+    ConfirmPasswordView
 )
 
 urlpatterns = [
-    path('register/', RegisterView.as_view(), name='register'),
+    path('register/', RegisterView.as_view()),
+    path('confirm_password/', ConfirmPasswordView.as_view()),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
-
-    # Email confirmation
-    path('confirm-email/', ConfirmEmailView.as_view(), name='confirm_email'),
 
     # Сброс пароля (через стороннее приложение)
     path('password_reset/verify_code/', verify_reset_code, name='verify_reset_code'),
