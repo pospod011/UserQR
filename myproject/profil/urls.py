@@ -9,6 +9,9 @@ from .views import (
     ConfirmPasswordView
 )
 
+
+
+
 urlpatterns = [
     path('register/', RegisterView.as_view()),
     path('confirm_password/', ConfirmPasswordView.as_view()),
@@ -22,4 +25,5 @@ urlpatterns = [
     # QR логин
     path('qr-login/generate/', QRLoginGenerateView.as_view(), name='qr_login_generate'),
     path('qr-login/verify/', QRLoginVerifyView.as_view(), name='qr_login_verify'),
+
 ]

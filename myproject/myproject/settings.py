@@ -162,4 +162,19 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'zanys2006@gmail.com'  # Ваш email
 EMAIL_HOST_PASSWORD = 'kxoq njim mrol qpnx'
 
+
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'in': 'header',
+            'name': 'Authorization',
+            'description': "Введите токен в формате: **Bearer &lt;JWT&gt;**"
+        }
+    },
+}
+
+
+
 AUTH_USER_MODEL = 'profil.UserProfile'
